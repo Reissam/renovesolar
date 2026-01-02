@@ -12,7 +12,7 @@
 
 ## Funcionalidades
 
-### 📸 Gerenciamento de Imagens
+### Gerenciamento de Imagens
 
 #### Imagem do Hero
 - **Tamanho recomendado**: 1200 x 800 pixels
@@ -26,7 +26,7 @@
 - **Tamanho máximo**: 5MB
 - **Quantidade**: Ilimitada
 
-### 📝 Gerenciamento de Conteúdo
+### Gerenciamento de Conteúdo
 
 #### Estudos de Caso
 - **Nome do projeto**: Título do estudo de caso

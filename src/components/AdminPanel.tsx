@@ -75,6 +75,16 @@ export default function AdminPanel() {
     }
   }, []);
 
+  const clearLocalStorage = () => {
+    if (confirm('Tem certeza que deseja limpar todos os dados? Isso não pode ser desfeito!')) {
+      localStorage.removeItem('adminProjects');
+      localStorage.removeItem('adminHero');
+      setProjects(initialProjects);
+      setHeroData(initialHeroData);
+      alert('Dados limpos com sucesso!');
+    }
+  };
+
   const handleLogin = () => {
     if (password === 'admin123') {
       setIsAuthenticated(true);
@@ -84,13 +94,30 @@ export default function AdminPanel() {
   };
 
   const saveToLocalStorage = (newProjects: Project[], newHero: HeroData) => {
-    localStorage.setItem('adminProjects', JSON.stringify(newProjects));
-    localStorage.setItem('adminHero', JSON.stringify(newHero));
-    
-    // Disparar evento customizado para notificar outras abas/componentes
-    window.dispatchEvent(new CustomEvent('adminDataUpdated', {
-      detail: { projects: newProjects, hero: newHero }
-    }));
+    try {
+      // Verificar tamanho antes de salvar
+      const dataSize = JSON.stringify({ projects: newProjects, hero: newHero }).length;
+      const maxSize = 4 * 1024 * 1024; // 4MB (limite seguro)
+      
+      if (dataSize > maxSize) {
+        alert('Dados muito grandes! Considere usar imagens menores ou serviço de cloud.');
+        console.warn('Data size:', dataSize, 'Max size:', maxSize);
+        return;
+      }
+      
+      localStorage.setItem('adminProjects', JSON.stringify(newProjects));
+      localStorage.setItem('adminHero', JSON.stringify(newHero));
+      
+      // Disparar evento customizado para notificar outras abas/componentes
+      window.dispatchEvent(new CustomEvent('adminDataUpdated', {
+        detail: { projects: newProjects, hero: newHero }
+      }));
+      
+      console.log('Dados salvos com sucesso!');
+    } catch (error) {
+      console.error('Erro ao salvar no localStorage:', error);
+      alert('Erro ao salvar dados! Tente novamente.');
+    }
   };
 
   const handleSaveProject = (project: Project) => {
@@ -103,24 +130,67 @@ export default function AdminPanel() {
     alert('Projeto salvo com sucesso!');
   };
 
+  const optimizeImage = (file: File, maxWidth: number = 800, maxHeight: number = 600): Promise<string> => {
+    return new Promise((resolve) => {
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+      const img = new Image();
+      
+      img.onload = () => {
+        // Calcular novas dimensões mantendo proporção
+        let width = img.width;
+        let height = img.height;
+        
+        if (width > maxWidth) {
+          height = (maxWidth / width) * height;
+          width = maxWidth;
+        }
+        
+        if (height > maxHeight) {
+          width = (maxHeight / height) * width;
+          height = maxHeight;
+        }
+        
+        canvas.width = width;
+        canvas.height = height;
+        
+        // Desenhar imagem otimizada
+        ctx?.drawImage(img, 0, 0, width, height);
+        
+        // Converter para JPEG com qualidade 80%
+        resolve(canvas.toDataURL('image/jpeg', 0.8));
+      };
+      
+      img.src = URL.createObjectURL(file);
+    });
+  };
+
   const handleImageUpload = (type: 'hero' | 'project', projectId?: number, file?: File) => {
     if (file) {
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        const imageUrl = e.target?.result as string;
-        
-        if (type === 'hero') {
-          const newHero = { image: imageUrl };
-          setHeroData(newHero);
-          saveToLocalStorage(projects, newHero);
-          alert('Imagem do Hero atualizada com sucesso!');
-        } else if (projectId && editingProject) {
-          const updatedProject = { ...editingProject, image: imageUrl };
-          setEditingProject(updatedProject);
-          alert('Imagem do projeto atualizada! Clique em Salvar para confirmar.');
-        }
-      };
-      reader.readAsDataURL(file);
+      // Verificar tamanho do arquivo (máximo 5MB)
+      if (file.size > 5 * 1024 * 1024) {
+        alert('Arquivo muito grande! Máximo permitido: 5MB');
+        return;
+      }
+
+      // Otimizar imagem antes de converter
+      optimizeImage(file, type === 'hero' ? 1200 : 600, type === 'hero' ? 800 : 400)
+        .then(optimizedImageUrl => {
+          if (type === 'hero') {
+            const newHero = { image: optimizedImageUrl };
+            setHeroData(newHero);
+            saveToLocalStorage(projects, newHero);
+            alert('Imagem do Hero atualizada com sucesso!');
+          } else if (projectId && editingProject) {
+            const updatedProject = { ...editingProject, image: optimizedImageUrl };
+            setEditingProject(updatedProject);
+            alert('Imagem do projeto atualizada! Clique em Salvar para confirmar.');
+          }
+        })
+        .catch(error => {
+          console.error('Erro ao otimizar imagem:', error);
+          alert('Erro ao processar imagem! Tente novamente.');
+        });
     }
   };
 
@@ -175,6 +245,13 @@ export default function AdminPanel() {
               <span className="text-sm text-green-600 bg-green-100 px-3 py-1 rounded-full">
                 ✓ Auto-salvo
               </span>
+              <button
+                onClick={clearLocalStorage}
+                className="text-sm text-red-600 bg-red-100 px-3 py-1 rounded-full hover:bg-red-200 transition"
+                title="Limpar todos os dados"
+              >
+                🗑️ Limpar
+              </button>
             </div>
           </div>
         </div>
@@ -215,6 +292,7 @@ export default function AdminPanel() {
                 </label>
                 <p className="text-sm text-gray-500 mt-1">PNG, JPG até 5MB</p>
                 <p className="text-xs text-gray-400 mt-2">Tamanho recomendado: 1200 x 800 pixels</p>
+                <p className="text-xs text-green-600 mt-1">✨ Imagens são otimizadas automaticamente</p>
               </div>
             </div>
           </div>
@@ -320,6 +398,7 @@ export default function AdminPanel() {
                       />
                     </label>
                     <p className="text-xs text-gray-400 mt-1">600 x 400 pixels recomendado</p>
+                    <p className="text-xs text-green-600 mt-1">✨ Imagens são otimizadas automaticamente</p>
                   </div>
                 </div>
 
