@@ -20,4 +20,46 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Environment Variables
 .env
+.env.local
+.env.production
+.env.staging
+.env.development
+
+# API Keys and Secrets
+*.key
+*.pem
+*.p12
+*.pfx
+secrets/
+credentials/
+
+# Supabase
+.supabase/
+supabase/backups/*.sql
+supabase/backups/*.csv
+supabase/logs/
+supabase/tmp/
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+
+# Test files
+coverage/
+.nyc_output/
+test-results/
+
+# Build artifacts
+build/
+.next/
+.nuxt/
+.output/
+
+# Temporary files
+.tmp/
+temp/
+*.tmp
