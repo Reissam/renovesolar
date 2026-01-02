@@ -1,0 +1,16 @@
+# Supabase Environment Variables
+.env.local
+.env
+
+# Supabase CLI
+.supabase/
+
+# Database Backups
+supabase/backups/*.sql
+supabase/backups/*.csv
+
+# Logs
+supabase/logs/
+
+# Temporary files
+supabase/tmp/
