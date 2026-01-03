@@ -60,21 +60,54 @@ export default function AdminPanel() {
   };
 
   useEffect(() => {
-    // Carregar dados do localStorage (fallback)
-    const savedProjects = localStorage.getItem('adminProjects');
-    const savedHero = localStorage.getItem('adminHero');
-    
-    if (savedProjects) {
-      setProjects(JSON.parse(savedProjects));
-    } else {
-      setProjects(initialProjects);
-    }
-    
-    if (savedHero) {
-      setHeroData(JSON.parse(savedHero));
-    } else {
-      setHeroData(initialHeroData);
-    }
+    const loadData = async () => {
+      try {
+        // Tentar carregar do Supabase primeiro
+        const apiKey = import.meta.env.VITE_SUPABASE_SERVICE_ROLE_KEY || import.meta.env.VITE_SUPABASE_ANON_KEY;
+        
+        // Carregar hero
+        const heroResponse = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/rest/v1/hero_config?id=eq.1`, {
+          headers: {
+            'apikey': apiKey,
+            'Authorization': `Bearer ${apiKey}`
+          }
+        });
+        
+        if (heroResponse.ok) {
+          const heroData = await heroResponse.json();
+          if (heroData.length > 0) {
+            setHeroData({ image: heroData[0].image || '' });
+          }
+        }
+        
+        // Carregar projetos
+        const projectsResponse = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/rest/v1/projects?order=id.asc`, {
+          headers: {
+            'apikey': apiKey,
+            'Authorization': `Bearer ${apiKey}`
+          }
+        });
+        
+        if (projectsResponse.ok) {
+          const projectsData = await projectsResponse.json();
+          setProjects(projectsData);
+        }
+        
+      } catch (error) {
+        console.warn('Erro ao carregar do Supabase, usando localStorage:', error);
+        // Fallback para localStorage
+        const savedProjects = localStorage.getItem('adminProjects');
+        const savedHero = localStorage.getItem('adminHero');
+        
+        if (savedProjects) {
+          setProjects(JSON.parse(savedProjects));
+        }
+        if (savedHero) {
+          setHeroData(JSON.parse(savedHero));
+        }
+      }
+    };
+    loadData();
   }, []);
 
   const handleLogin = () => {
@@ -170,7 +203,7 @@ export default function AdminPanel() {
         if (type === 'hero') {
           const newHero = { image: imageUrl };
           setHeroData(newHero);
-          saveToLocalStorage(projects, newHero);
+          saveData(projects, newHero);
           alert('Imagem do Hero atualizada com sucesso!');
         } else if (projectId && editingProject) {
           const updatedProject = { ...editingProject, image: imageUrl };
@@ -185,20 +218,74 @@ export default function AdminPanel() {
     }
   };
 
-  const saveToLocalStorage = (newProjects: Project[], newHero: HeroData) => {
+  // Salvar dados no Supabase (com fallback para localStorage)
+  const saveData = async (newProjects: Project[], newHero: HeroData) => {
     try {
+      const apiKey = import.meta.env.VITE_SUPABASE_SERVICE_ROLE_KEY || import.meta.env.VITE_SUPABASE_ANON_KEY;
+      
+      // Salvar hero no Supabase
+      await fetch(`${import.meta.env.VITE_SUPABASE_URL}/rest/v1/hero_config?id=eq.1`, {
+        method: 'PATCH',
+        headers: {
+          'apikey': apiKey,
+          'Authorization': `Bearer ${apiKey}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ image: newHero.image })
+      });
+      
+      // Salvar projetos no Supabase
+      for (const project of newProjects) {
+        const projectResponse = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/rest/v1/projects?id=eq.${project.id}`, {
+          method: 'PATCH',
+          headers: {
+            'apikey': apiKey,
+            'Authorization': `Bearer ${apiKey}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(project)
+        });
+        
+        // Se projeto não existe, criar
+        if (projectResponse.status === 404) {
+          await fetch(`${import.meta.env.VITE_SUPABASE_URL}/rest/v1/projects`, {
+            method: 'POST',
+            headers: {
+              'apikey': apiKey,
+              'Authorization': `Bearer ${apiKey}`,
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(project)
+          });
+        }
+      }
+      
+      // Fallback para localStorage
       localStorage.setItem('adminProjects', JSON.stringify(newProjects));
       localStorage.setItem('adminHero', JSON.stringify(newHero));
       
-      // Disparar evento customizado
+      // Disparar evento
       window.dispatchEvent(new CustomEvent('adminDataUpdated', {
         detail: { projects: newProjects, hero: newHero }
       }));
       
-      console.log('Dados salvos com sucesso!');
+      console.log('✅ Dados salvos no Supabase!');
+      
     } catch (error) {
-      console.error('Erro ao salvar no localStorage:', error);
-      alert('Erro ao salvar dados! Tente novamente.');
+      console.warn('Erro ao salvar no Supabase, usando localStorage:', error);
+      // Fallback para localStorage
+      try {
+        localStorage.setItem('adminProjects', JSON.stringify(newProjects));
+        localStorage.setItem('adminHero', JSON.stringify(newHero));
+        
+        // Disparar evento
+        window.dispatchEvent(new CustomEvent('adminDataUpdated', {
+          detail: { projects: newProjects, hero: newHero }
+        }));
+      } catch (localError) {
+        console.error('Erro ao salvar no localStorage:', localError);
+        alert('Erro ao salvar dados! Tente novamente.');
+      }
     }
   };
 
@@ -207,7 +294,7 @@ export default function AdminPanel() {
       ? projects.map(p => p.id === project.id ? project : p)
       : [...projects, project];
     setProjects(newProjects);
-    saveToLocalStorage(newProjects, heroData);
+    saveData(newProjects, heroData);
     setEditingProject(null);
     alert('Projeto salvo com sucesso!');
   };
@@ -216,7 +303,7 @@ export default function AdminPanel() {
     if (confirm('Tem certeza que deseja excluir este projeto?')) {
       const newProjects = projects.filter(p => p.id !== id);
       setProjects(newProjects);
-      saveToLocalStorage(newProjects, heroData);
+      saveData(newProjects, heroData);
       alert('Projeto excluído com sucesso!');
     }
   };
