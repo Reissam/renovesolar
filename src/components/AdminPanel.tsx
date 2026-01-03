@@ -208,7 +208,15 @@ export default function AdminPanel() {
         } else if (projectId && editingProject) {
           const updatedProject = { ...editingProject, image: imageUrl };
           setEditingProject(updatedProject);
-          alert('Imagem do projeto atualizada! Clique em Salvar para confirmar.');
+          
+          // Salvar automaticamente o projeto com a nova imagem
+          const newProjects = projects.find(p => p.id === projectId) 
+            ? projects.map(p => p.id === projectId ? updatedProject : p)
+            : [...projects, updatedProject];
+          setProjects(newProjects);
+          saveData(newProjects, heroData);
+          
+          alert('Imagem do projeto atualizada e salva automaticamente!');
         }
       } catch (error) {
         console.error('Erro no upload:', error);

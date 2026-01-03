@@ -8,23 +8,47 @@ import FAQ from './components/FAQ';
 import CallToAction from './components/CallToAction';
 import Footer from './components/Footer';
 import LeadForm from './components/LeadForm';
+import SimpleLeadForm from './components/SimpleLeadForm';
 import ErrorBoundary from './components/ErrorBoundary';
 import { updateMetaTags, addLocalBusinessData, addServiceData } from './utils/seo';
 import { useAnalytics } from './utils/analytics';
 import { OptimizedSection } from './components/PerformanceComponents';
 
+type FormType = 'orcamento' | 'calcule_economia' | 'proposta_personalizada' | null;
+
 function App() {
-  const [showForm, setShowForm] = useState(false);
+  const [showForm, setShowForm] = useState<FormType>(null);
   const [simulatorConsumption, setSimulatorConsumption] = useState<number | null>(null);
   const { trackEvent, trackConversion, isTracking } = useAnalytics();
 
   const handleSimulatorProposal = (consumption: number) => {
     setSimulatorConsumption(consumption);
-    setShowForm(true);
+    setShowForm('orcamento');
     
     // Track simulator usage
     trackEvent('simulator_proposal_request', {
       consumption,
+      timestamp: Date.now()
+    });
+  };
+
+  const handleCalculeEconomia = () => {
+    setShowForm('calcule_economia');
+    trackEvent('calcule_economia_click', {
+      timestamp: Date.now()
+    });
+  };
+
+  const handlePropostaPersonalizada = () => {
+    setShowForm('proposta_personalizada');
+    trackEvent('proposta_personalizada_click', {
+      timestamp: Date.now()
+    });
+  };
+
+  const handleContactClick = () => {
+    setShowForm('orcamento');
+    trackEvent('contact_click', {
       timestamp: Date.now()
     });
   };
@@ -77,13 +101,45 @@ function App() {
     return () => observer.disconnect();
   }, [isTracking, trackEvent]);
 
+  const renderForm = () => {
+    if (!showForm) return null;
+
+    switch (showForm) {
+      case 'orcamento':
+        return (
+          <LeadForm 
+            onClose={() => setShowForm(null)} 
+            initialConsumption={simulatorConsumption || undefined}
+          />
+        );
+      case 'calcule_economia':
+        return (
+          <SimpleLeadForm 
+            onClose={() => setShowForm(null)} 
+            formType="calcule_economia"
+            title="Calcule sua Economia"
+          />
+        );
+      case 'proposta_personalizada':
+        return (
+          <SimpleLeadForm 
+            onClose={() => setShowForm(null)} 
+            formType="proposta_personalizada"
+            title="Receba Proposta Personalizada"
+          />
+        );
+      default:
+        return null;
+    }
+  };
+
   return (
     <ErrorBoundary>
       <div className="min-h-screen bg-white">
-        <Header onContactClick={() => setShowForm(!showForm)} />
+        <Header onContactClick={handleContactClick} />
         <main>
           <OptimizedSection id="inicio">
-            <DynamicHero onSimulateClick={() => setShowForm(true)} />
+            <DynamicHero onSimulateClick={handleCalculeEconomia} />
           </OptimizedSection>
           
           <OptimizedSection id="simulador">
@@ -103,18 +159,13 @@ function App() {
           </OptimizedSection>
           
           <OptimizedSection id="contato">
-            <CallToAction onContactClick={() => setShowForm(true)} />
+            <CallToAction onContactClick={handlePropostaPersonalizada} />
           </OptimizedSection>
         </main>
         
         <Footer />
         
-        {showForm && (
-          <LeadForm 
-            onClose={() => setShowForm(false)} 
-            initialConsumption={simulatorConsumption || undefined}
-          />
-        )}
+        {renderForm()}
       </div>
     </ErrorBoundary>
   );

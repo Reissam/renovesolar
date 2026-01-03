@@ -1,13 +1,13 @@
 import { useState } from 'react';
 import { X, Loader } from 'lucide-react';
-import { supabase } from '../lib/supabase';
 
-interface LeadFormProps {
+interface SimpleLeadFormProps {
   onClose: () => void;
-  initialConsumption?: number;
+  formType: 'calcule_economia' | 'proposta_personalizada';
+  title: string;
 }
 
-export default function LeadForm({ onClose, initialConsumption }: LeadFormProps) {
+export default function SimpleLeadForm({ onClose, formType, title }: SimpleLeadFormProps) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
@@ -15,14 +15,10 @@ export default function LeadForm({ onClose, initialConsumption }: LeadFormProps)
     name: '',
     email: '',
     phone: '',
-    consumption: initialConsumption?.toString() || '',
-    propertyType: 'residential',
-    city: '',
-    state: '',
-    bestContactTime: 'morning'
+    message: ''
   });
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     setFormData(prev => ({
       ...prev,
       [e.target.name]: e.target.value
@@ -40,15 +36,11 @@ export default function LeadForm({ onClose, initialConsumption }: LeadFormProps)
         name: formData.name,
         email: formData.email,
         phone: formData.phone,
-        consumption: formData.consumption ? parseFloat(formData.consumption) : null,
-        property_type: formData.propertyType,
-        city: formData.city,
-        state: formData.state,
-        best_contact_time: formData.bestContactTime,
+        message: formData.message,
         lead_source: 'website_form',
         status: 'new',
         timestamp: new Date().toISOString(),
-        form_type: 'orcamento_gratis'
+        form_type: formType
       };
 
       const webhookResponse = await fetch('http://localhost:5678/webhook-test/orcamento_gratis', {
@@ -60,39 +52,17 @@ export default function LeadForm({ onClose, initialConsumption }: LeadFormProps)
       });
 
       if (!webhookResponse.ok) {
-        console.warn('Webhook N8N falhou, salvando no Supabase como fallback');
-        
-        // Fallback: Salvar no Supabase
-        const { error: insertError } = await supabase
-          .from('leads')
-          .insert([{
-            name: formData.name,
-            email: formData.email,
-            phone: formData.phone,
-            consumption: formData.consumption ? parseFloat(formData.consumption) : null,
-            property_type: formData.propertyType,
-            city: formData.city,
-            state: formData.state,
-            best_contact_time: formData.bestContactTime,
-            lead_source: 'website_form',
-            status: 'new'
-          }]);
-
-        if (insertError) throw insertError;
-      } else {
-        console.log('✅ Dados enviados para N8N com sucesso');
+        throw new Error('Falha ao enviar para N8N');
       }
+
+      console.log('✅ Dados enviados para N8N com sucesso');
 
       setSuccess(true);
       setFormData({
         name: '',
         email: '',
         phone: '',
-        consumption: '',
-        propertyType: 'residential',
-        city: '',
-        state: '',
-        bestContactTime: 'morning'
+        message: ''
       });
 
       setTimeout(() => {
@@ -110,7 +80,7 @@ export default function LeadForm({ onClose, initialConsumption }: LeadFormProps)
     <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
       <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full max-h-[90vh] overflow-y-auto">
         <div className="sticky top-0 bg-gradient-to-r from-blue-900 to-blue-800 p-6 flex items-center justify-between">
-          <h2 className="text-2xl font-bold text-white">Orçamento Grátis</h2>
+          <h2 className="text-2xl font-bold text-white">{title}</h2>
           <button onClick={onClose} className="text-white hover:bg-white/20 p-1 rounded transition">
             <X size={24} />
           </button>
@@ -124,7 +94,7 @@ export default function LeadForm({ onClose, initialConsumption }: LeadFormProps)
               </div>
               <h3 className="text-2xl font-bold text-green-600">Sucesso!</h3>
               <p className="text-gray-600">
-                Seu formulário foi enviado com sucesso! Entraremos em contato em até 2 horas.
+                Sua solicitação foi enviada com sucesso! Entraremos em contato em até 2 horas.
               </p>
             </div>
           ) : (
@@ -169,69 +139,15 @@ export default function LeadForm({ onClose, initialConsumption }: LeadFormProps)
               </div>
 
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-1">Consumo Mensal (kWh)</label>
-                <input
-                  type="number"
-                  name="consumption"
-                  value={formData.consumption}
+                <label className="block text-sm font-semibold text-gray-700 mb-1">Mensagem (opcional)</label>
+                <textarea
+                  name="message"
+                  value={formData.message}
                   onChange={handleChange}
+                  rows={3}
                   className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:outline-none focus:border-yellow-400"
-                  placeholder="500"
+                  placeholder="Digite sua mensagem aqui..."
                 />
-              </div>
-
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-1">Tipo de Imóvel</label>
-                <select
-                  name="propertyType"
-                  value={formData.propertyType}
-                  onChange={handleChange}
-                  className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:outline-none focus:border-yellow-400"
-                >
-                  <option value="residential">Residencial</option>
-                  <option value="commercial">Comercial</option>
-                  <option value="rural">Rural/Agronegócio</option>
-                </select>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-1">Cidade</label>
-                  <input
-                    type="text"
-                    name="city"
-                    value={formData.city}
-                    onChange={handleChange}
-                    className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:outline-none focus:border-yellow-400"
-                    placeholder="São Paulo"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-1">Estado</label>
-                  <input
-                    type="text"
-                    name="state"
-                    value={formData.state}
-                    onChange={handleChange}
-                    className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:outline-none focus:border-yellow-400"
-                    placeholder="SP"
-                    maxLength={2}
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-1">Melhor Horário para Contato</label>
-                <select
-                  name="bestContactTime"
-                  value={formData.bestContactTime}
-                  onChange={handleChange}
-                  className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:outline-none focus:border-yellow-400"
-                >
-                  <option value="morning">Manhã (08:00 - 12:00)</option>
-                  <option value="afternoon">Tarde (12:00 - 18:00)</option>
-                  <option value="evening">Noite (18:00 - 22:00)</option>
-                </select>
               </div>
 
               {error && <div className="p-3 bg-red-100 text-red-700 rounded-lg text-sm">{error}</div>}
@@ -247,7 +163,7 @@ export default function LeadForm({ onClose, initialConsumption }: LeadFormProps)
                     Enviando...
                   </>
                 ) : (
-                  'Solicitar Orçamento'
+                  'Enviar Solicitação'
                 )}
               </button>
 
