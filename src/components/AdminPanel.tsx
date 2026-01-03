@@ -148,11 +148,21 @@ export default function AdminPanel() {
 
   const handleImageUpload = async (type: 'hero' | 'project', projectId?: number, file?: File) => {
     if (file) {
-      // Verificar tamanho (máximo 5MB)
-      if (file.size > 5 * 1024 * 1024) {
+      // Validações
+      const allowedTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/jpg'];
+      const maxSize = 5 * 1024 * 1024; // 5MB
+      
+      if (!allowedTypes.includes(file.type)) {
+        alert('Formato não suportado! Use JPEG, PNG ou WebP.');
+        return;
+      }
+      
+      if (file.size > maxSize) {
         alert('Arquivo muito grande! Máximo permitido: 5MB');
         return;
       }
+
+      console.log('📤 Iniciando upload:', file.name, file.type, file.size);
 
       try {
         const imageUrl = await uploadToSupabase(file, type, projectId);
@@ -168,7 +178,9 @@ export default function AdminPanel() {
           alert('Imagem do projeto atualizada! Clique em Salvar para confirmar.');
         }
       } catch (error) {
-        alert('Erro ao fazer upload! Tente novamente.');
+        console.error('Erro no upload:', error);
+        const errorMessage = error instanceof Error ? error.message : 'Erro desconhecido';
+        alert(`Erro ao fazer upload: ${errorMessage}`);
       }
     }
   };
