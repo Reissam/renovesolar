@@ -90,24 +90,24 @@ export default function AdminPanel() {
     setUploading(true);
     
     try {
-      // Gerar nome único
-      const timestamp = Date.now();
+      // Gerar nome único ou usar nome fixo para sobrescrever
       const fileName = type === 'hero' 
-        ? `hero-${timestamp}.jpg`
-        : `project-${projectId || timestamp}.jpg`;
+        ? 'hero.jpg'  // Nome fixo para hero (sempre sobrescreve)
+        : `project-${projectId || 'new'}.jpg`;  // Nome fixo por projeto
       
       // Usar service role key se disponível (para produção), senão anon key
       const apiKey = import.meta.env.VITE_SUPABASE_SERVICE_ROLE_KEY || import.meta.env.VITE_SUPABASE_ANON_KEY;
       
-      // Upload direto via REST API (mais confiável)
+      // Upload com upsert para evitar erro 409 (sobrescreve se existir)
       const formData = new FormData();
-      formData.append('file', file, fileName);
+      formData.append('file', file);
       
       const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/storage/v1/object/renove-images/${fileName}`, {
         method: 'POST',
         headers: {
           'apikey': apiKey,
-          'Authorization': `Bearer ${apiKey}`
+          'Authorization': `Bearer ${apiKey}`,
+          'x-upsert': 'true'  // Habilita upsert - sobrescreve se existir
         },
         body: formData
       });
