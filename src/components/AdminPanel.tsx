@@ -96,32 +96,46 @@ export default function AdminPanel() {
         ? `hero-${timestamp}.jpg`
         : `project-${projectId || timestamp}.jpg`;
       
-      // Upload para Supabase
-      const { error } = await supabase.storage
-        .from('renove-images')
-        .upload(fileName, file, {
-          cacheControl: '3600',
-          upsert: true
-        });
+      // Usar service role key se disponível (para produção), senão anon key
+      const apiKey = import.meta.env.VITE_SUPABASE_SERVICE_ROLE_KEY || import.meta.env.VITE_SUPABASE_ANON_KEY;
       
-      if (error) throw error;
+      // Upload direto via REST API (mais confiável)
+      const formData = new FormData();
+      formData.append('file', file, fileName);
+      
+      const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/storage/v1/object/renove-images/${fileName}`, {
+        method: 'POST',
+        headers: {
+          'apikey': apiKey,
+          'Authorization': `Bearer ${apiKey}`
+        },
+        body: formData
+      });
+      
+      if (!response.ok) {
+        const error = await response.text();
+        throw new Error(`Upload failed: ${error}`);
+      }
       
       // Obter URL pública
-      const { data: { publicUrl } } = supabase.storage
-        .from('renove-images')
-        .getPublicUrl(fileName);
+      const publicUrl = `${import.meta.env.VITE_SUPABASE_URL}/storage/v1/object/public/renove-images/${fileName}`;
       
-      // Salvar metadados
-      await supabase
-        .from('image_metadata')
-        .insert({
-          name: fileName,
-          type: type,
-          project_id: projectId,
-          file_path: fileName,
-          file_size: file.size,
-          mime_type: file.type
-        });
+      // Salvar metadados (opcional)
+      try {
+        await supabase
+          .from('image_metadata')
+          .insert({
+            name: fileName,
+            type: type,
+            project_id: projectId,
+            file_path: fileName,
+            file_size: file.size,
+            mime_type: file.type
+          });
+      } catch (metadataError) {
+        console.warn('Metadata save failed:', metadataError);
+        // Continuar mesmo se metadados falharem
+      }
       
       return publicUrl;
     } catch (error) {
