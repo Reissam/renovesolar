@@ -17,18 +17,44 @@ export default function DynamicHero({ onSimulateClick }: HeroProps) {
   };
 
   useEffect(() => {
-    // Carregar dados do localStorage
-    const savedHero = localStorage.getItem('adminHero');
-    if (savedHero) {
+    const loadData = async () => {
       try {
-        setHeroData(JSON.parse(savedHero));
+        // Tentar carregar do Supabase primeiro
+        const apiKey = import.meta.env.VITE_SUPABASE_SERVICE_ROLE_KEY || import.meta.env.VITE_SUPABASE_ANON_KEY;
+        
+        const heroResponse = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/rest/v1/hero_config?id=eq.1`, {
+          headers: {
+            'apikey': apiKey,
+            'Authorization': `Bearer ${apiKey}`
+          }
+        });
+        
+        if (heroResponse.ok) {
+          const heroData = await heroResponse.json();
+          if (heroData.length > 0 && heroData[0].image) {
+            setHeroData({ image: heroData[0].image });
+            return;
+          }
+        }
       } catch (error) {
-        console.error('Erro ao carregar dados do Hero:', error);
+        console.warn('Erro ao carregar do Supabase, usando localStorage:', error);
+      }
+      
+      // Fallback para localStorage
+      const savedHero = localStorage.getItem('adminHero');
+      if (savedHero) {
+        try {
+          setHeroData(JSON.parse(savedHero));
+        } catch (error) {
+          console.error('Erro ao carregar dados do Hero:', error);
+          setHeroData(initialHeroData);
+        }
+      } else {
         setHeroData(initialHeroData);
       }
-    } else {
-      setHeroData(initialHeroData);
-    }
+    };
+
+    loadData();
 
     // Listener para evento customizado de atualização
     const handleAdminDataUpdated = (e: CustomEvent) => {

@@ -45,18 +45,44 @@ export default function DynamicCaseStudies() {
   ];
 
   useEffect(() => {
-    // Carregar dados do localStorage
-    const savedProjects = localStorage.getItem('adminProjects');
-    if (savedProjects) {
+    const loadData = async () => {
       try {
-        setProjects(JSON.parse(savedProjects));
+        // Tentar carregar do Supabase primeiro
+        const apiKey = import.meta.env.VITE_SUPABASE_SERVICE_ROLE_KEY || import.meta.env.VITE_SUPABASE_ANON_KEY;
+        
+        const projectsResponse = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/rest/v1/projects?order=id.asc`, {
+          headers: {
+            'apikey': apiKey,
+            'Authorization': `Bearer ${apiKey}`
+          }
+        });
+        
+        if (projectsResponse.ok) {
+          const projectsData = await projectsResponse.json();
+          if (projectsData.length > 0) {
+            setProjects(projectsData);
+            return;
+          }
+        }
       } catch (error) {
-        console.error('Erro ao carregar projetos:', error);
+        console.warn('Erro ao carregar do Supabase, usando localStorage:', error);
+      }
+      
+      // Fallback para localStorage
+      const savedProjects = localStorage.getItem('adminProjects');
+      if (savedProjects) {
+        try {
+          setProjects(JSON.parse(savedProjects));
+        } catch (error) {
+          console.error('Erro ao carregar projetos:', error);
+          setProjects(initialProjects);
+        }
+      } else {
         setProjects(initialProjects);
       }
-    } else {
-      setProjects(initialProjects);
-    }
+    };
+
+    loadData();
 
     // Listener para evento customizado de atualização
     const handleAdminDataUpdated = (e: CustomEvent) => {
