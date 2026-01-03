@@ -43,7 +43,7 @@ export default function SimpleLeadForm({ onClose, formType, title }: SimpleLeadF
         form_type: formType
       };
 
-      const webhookResponse = await fetch('http://localhost:5678/webhook-test/orcamento_gratis', {
+      const webhookResponse = await fetch('https://n8n-xg2x.onrender.com/webhook-test/orcamento_gratis', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

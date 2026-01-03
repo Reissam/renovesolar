@@ -51,7 +51,7 @@ export default function LeadForm({ onClose, initialConsumption }: LeadFormProps)
         form_type: 'orcamento_gratis'
       };
 
-      const webhookResponse = await fetch('http://localhost:5678/webhook-test/orcamento_gratis', {
+      const webhookResponse = await fetch('https://n8n-xg2x.onrender.com/webhook-test/orcamento_gratis', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
