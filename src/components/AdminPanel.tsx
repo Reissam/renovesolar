@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Upload, Save, X, Edit2, Trash2, Image as ImageIcon } from 'lucide-react';
-import { supabase } from '../lib/supabase';
+// Removido import do Supabase - vamos usar fetch direto
 
 interface Project {
   id: number;
@@ -120,22 +120,22 @@ export default function AdminPanel() {
       // Obter URL pública
       const publicUrl = `${import.meta.env.VITE_SUPABASE_URL}/storage/v1/object/public/renove-images/${fileName}`;
       
-      // Salvar metadados (opcional)
-      try {
-        await supabase
-          .from('image_metadata')
-          .insert({
-            name: fileName,
-            type: type,
-            project_id: projectId,
-            file_path: fileName,
-            file_size: file.size,
-            mime_type: file.type
-          });
-      } catch (metadataError) {
-        console.warn('Metadata save failed:', metadataError);
-        // Continuar mesmo se metadados falharem
-      }
+      // Salvar metadados (opcional) - removido dependência do Supabase
+      // try {
+      //   await supabase
+      //     .from('image_metadata')
+      //     .insert({
+      //       name: fileName,
+      //       type: type,
+      //       project_id: projectId,
+      //       file_path: fileName,
+      //       file_size: file.size,
+      //       mime_type: file.type
+      //     });
+      // } catch (metadataError) {
+      //   console.warn('Metadata save failed:', metadataError);
+      //   // Continuar mesmo se metadados falharem
+      // }
       
       return publicUrl;
     } catch (error) {
